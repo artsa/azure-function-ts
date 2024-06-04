@@ -1,0 +1,47 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run ESLint
+        run: npx eslint .
+
+      - name: Run Vitest unit tests
+        run: npx vitest
+
+      - name: Initialize Terraform
+        env:
+            ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+            ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+            ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+            ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+            TF_STATE_BLOB: ${{ secrets.TF_STATE_BLOB }}
+        run: |
+            terraform init -backend-config="storage_account_name=${TF_STATE_BLOB}.blob.core.windows.net" -backend-config="container_name=terraform-state" -backend-config="key=terraform.tfstate"
+
+      - name: Apply Terraform
+        run: terraform apply -auto-approve
+
+      - name: Deploy to Azure
+        env:
+          AZURE_FUNCTIONS_APP_NAME: ${{ secrets.AZURE_FUNCTIONS_APP_NAME }}
+          AZURE_FUNCTIONS_APP_RESOURCE_GROUP: ${{ secrets.AZURE_FUNCTIONS_APP_RESOURCE_GROUP }}
+          AZURE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          az functionapp deployment source config --name $AZURE_FUNCTIONS_APP_NAME --resource-group $AZURE_FUNCTIONS_APP_RESOURCE_GROUP --repo-url $GITHUB_SHA
+          az functionapp deployment create --name $AZURE_FUNCTIONS_APP_NAME --resource-group $AZURE_FUNCTIONS_APP_RESOURCE_GROUP --slot staging --github-action-token $GITHUB_TOKEN
