@@ -1,7 +1,12 @@
 const js = require('@eslint/js');
 const tseslint = require('typescript-eslint');
+const vitest = require('eslint-plugin-vitest');
 
 module.exports = [
+  {
+    // config with just ignores is the replacement for `.eslintignore`
+    ignores: ['**/build/**', '**/dist/**', 'eslint.config.js'],
+  },
   {
     files: ['**/*.ts', 'src/functions/*'],
     languageOptions: {
@@ -32,4 +37,18 @@ module.exports = [
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    // disable type-aware linting on JS files
+    files: ['**/*.js'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: ["src/**/*.test.*"], // or any other pattern
+    plugins: {
+      vitest
+    },
+    rules: {
+      ...vitest.configs.all.rules, // you can also use vitest.configs.all.rules to enable all rules
+    },
+  },
 ];
