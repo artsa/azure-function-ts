@@ -1,5 +1,5 @@
 {
-  "name": "",
+  "name": "http-hello",
   "version": "1.0.0",
   "description": "",
   "main": "dist/src/functions/*.js",
@@ -9,7 +9,7 @@
     "clean": "rimraf dist",
     "prestart": "npm run clean && npm run build",
     "start": "func start",
-    "test": "npx vitest"
+    "test": "vitest"
   },
   "dependencies": {
     "@azure/functions": "^4.0.0"

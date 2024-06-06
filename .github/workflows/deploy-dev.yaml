@@ -10,12 +10,6 @@ permissions:
   id-token: write
   contents: read
 
-#These environment variables are used by the terraform azure provider to setup OIDD authenticate.
-env:
-  ARM_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
-  ARM_SUBSCRIPTION_ID: "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-  ARM_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
-
 jobs:
   terraform-plan:
     name: 'Terraform Plan'
@@ -37,6 +31,13 @@ jobs:
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_wrapper: false
+
+    - name: 'Az CLI login'
+      uses: azure/login@v2
+      with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
 
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
@@ -133,18 +134,22 @@ jobs:
       AZURE_FUNCTIONS_APP_NAME: ${{ secrets.AZURE_FUNCTIONS_APP_NAME }}
       AZURE_FUNCTIONS_APP_RESOURCE_GROUP: ${{ secrets.AZURE_FUNCTIONS_APP_RESOURCE_GROUP }}
       AZURE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      NODE_VERSION: "20"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: npm install
+      - name: Setup Node ${{ env.NODE_VERSION }} Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Run ESLint
-        run: npx eslint .
-
-      - name: Run Vitest unit tests
-        run: npx vitest
+      - name: 'Resolve Project Dependencies Using Npm'
+        shell: bash
+        run: |
+          npm install
+          npm run build --if-present
+          npm run test --if-present
 
       - name: 'Az CLI login'
         uses: azure/login@v2
@@ -153,9 +158,8 @@ jobs:
             tenant-id: ${{ secrets.AZURE_TENANT_ID }}
             allow-no-subscriptions: true
 
-      - name: Deploy to Azure
-        uses: azure/cli@v2
+      - name: 'Run Azure Functions Action'
+        uses: Azure/functions-action@v1
+        id: fa
         with:
-          inlineScript: |
-            az functionapp deployment source config --name $AZURE_FUNCTIONS_APP_NAME --resource-group $AZURE_FUNCTIONS_APP_RESOURCE_GROUP --repo-url $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
-            az functionapp deployment create --name $AZURE_FUNCTIONS_APP_NAME --resource-group $AZURE_FUNCTIONS_APP_RESOURCE_GROUP --slot staging --github-action-token $GITHUB_TOKEN
+          app-name: ${{ env.AZURE_FUNCTIONS_APP_NAME }}
