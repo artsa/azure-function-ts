@@ -13,9 +13,9 @@ terraform {
   }
 
   backend "azurerm" {
-    resource_group_name  = var.tf_state_azure_resource_group
-    storage_account_name = var.tf_state_azure_storage_account
-    container_name       = var.tf_state_azure_storage_container
+    resource_group_name  = "tf-state"
+    storage_account_name = "aritfstateblob"
+    container_name       = "tfstate"
     key                  = "terraform.tfstate"
     use_oidc             = true
   }
